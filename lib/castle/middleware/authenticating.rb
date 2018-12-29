@@ -59,13 +59,14 @@ module Castle
 
         case verdict[:action]
         when 'challenge'
-          url = mapping.challenge_url
-          html = Net::HTTP.get(URI.parse(url))
-          return [200, {'Content-Type' => 'text/html'}, [html]]
+          uri = URI(mapping.challenge_url)
+          res = Net::HTTP.get_response(uri)
+          return [200, res.each_header.to_h, [res.body]]
         when 'deny'
-          url = mapping.deny_url
-          html = Net::HTTP.get(URI.parse(url))
-          return [200, {'Content-Type' => 'text/html'}, [html]]
+          uri = URI(mapping.deny_url)
+          res = Net::HTTP.get_response(uri)
+          binding.pry
+          return [200, res.each_header.to_h, [res.body]]
         end
 
         app_result
