@@ -15,7 +15,7 @@ module Castle
 
         class << self
           def build(config)
-            return unless config.is_a?(::Hash)
+            config = {} unless config.is_a?(::Hash)
 
             new.tap do |obj|
               obj.url, obj.status, obj.headers = config.values_at('url', 'status', 'headers')
