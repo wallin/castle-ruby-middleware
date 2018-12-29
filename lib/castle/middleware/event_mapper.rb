@@ -18,7 +18,7 @@ module Castle
             return unless config.is_a?(::Hash)
 
             new.tap do |obj|
-              obj.url, obj.status, obj.headers = config.values_at(:url, :status, :headers)
+              obj.url, obj.status, obj.headers = config.values_at('url', 'status', 'headers')
               obj.body = config[:body] if obj.url.nil?
               obj.url ||= DEFAULT_DENY_URL
             end

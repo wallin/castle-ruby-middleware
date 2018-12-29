@@ -60,19 +60,26 @@ module Castle
         case verdict[:action]
         when 'challenge'
           if mapping.challenge
-            uri = URI(mapping.challenge.url)
-            res = Net::HTTP.get_response(uri)
-            return [200, res.each_header.to_h, [res.body]]
+            return handle_mapping_response(mapping.challenge)
           end
         when 'deny'
           if mapping.deny
-            uri = URI(mapping.deny.url)
-            res = Net::HTTP.get_response(uri)
-            return [200, res.each_header.to_h, [res.body]]
+            return handle_mapping_response(mapping.deny)
           end
         end
 
         app_result
+      end
+
+      def handle_mapping_response(response)
+        status = response.status || 200
+        if response.body
+          [status, response.headers || {}, [response.body]]
+        else
+          uri = URI(response.url)
+          res = Net::HTTP.get_response(uri)
+          [status, response.headers || res.each_header.to_h, [res.body]]
+        end
       end
 
       private
