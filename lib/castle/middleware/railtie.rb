@@ -10,8 +10,8 @@ module Castle
                                            Castle::Middleware::Sensor
         app.config.middleware.insert_after ActionDispatch::Static,
                                            Castle::Middleware::Authenticating
-        app.config.middleware.insert_after ActionDispatch::Flash,
-                                           Castle::Middleware::Tracking
+        # app.config.middleware.insert_after ActionDispatch::Flash,
+        #                                    Castle::Middleware::Tracking
       end
     end
   end
