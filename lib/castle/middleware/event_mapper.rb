@@ -6,7 +6,7 @@ module Castle
     class EventMapper
       Mapping = Struct.new(:event, :method, :path, :redirect_url,
                            :status, :properties, :user_traits_from_params, :authenticate,
-                           :challenge, :referer, :quitting)
+                           :challenge, :referer, :quitting, :deny_url, :challenge_url)
 
       attr_accessor :mappings
 
@@ -29,7 +29,11 @@ module Castle
           conditions.fetch(:authenticate, false),
           conditions.fetch(:challenge, false),
           conditions[:referer],
-          conditions.fetch(:quitting, false)
+          conditions.fetch(:quitting, false),
+          conditions.fetch(:deny_url,
+                           'https://brissmyr.github.io/pages/deny.html'),
+          conditions.fetch(:challenge_url,
+                           'https://brissmyr.github.io/pages/deny.html')
         )
       end
 

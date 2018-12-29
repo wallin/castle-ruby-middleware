@@ -46,15 +46,26 @@ module Castle
 
         verdict = process_authenticate(req, resource, mapping, user_traits_from_params, event_properties)
 
-        if mapping.challenge
-          redirect_result = authentication_verdict(verdict, req, resource)
-          if redirect_result
-            return [302, {
-              'Location' => redirect_result,
-              'Content-Type' => 'text/html',
-              'Content-Length' => '0'
-            }, []]
-          end
+        # if mapping.challenge
+        #   redirect_result = authentication_verdict(verdict, req, resource)
+        #   if redirect_result
+        #     return [302, {
+        #       'Location' => redirect_result,
+        #       'Content-Type' => 'text/html',
+        #       'Content-Length' => '0'
+        #     }, []]
+        #   end
+        # end
+
+        case verdict[:action]
+        when 'challenge'
+          url = mapping.challenge_url
+          html = Net::HTTP.get(URI.parse(url))
+          return [200, {'Content-Type' => 'text/html'}, [html]]
+        when 'deny'
+          url = mapping.deny_url
+          html = Net::HTTP.get(URI.parse(url))
+          return [200, {'Content-Type' => 'text/html'}, [html]]
         end
 
         app_result
