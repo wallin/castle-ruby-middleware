@@ -19,7 +19,7 @@ module Castle
 
             new.tap do |obj|
               obj.url, obj.status, obj.headers = config.values_at('url', 'status', 'headers')
-              obj.body = config[:body] if obj.url.nil?
+              obj.body = config['body']
               obj.url ||= DEFAULT_DENY_URL
             end
           end
