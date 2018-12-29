@@ -78,7 +78,12 @@ module Castle
         else
           uri = URI(response.url)
           res = Net::HTTP.get_response(uri)
-          [status, response.headers || res.each_header.to_h, [res.body]]
+
+          # Don't do GZIP
+          headers =
+            res.each_header.to_h.merge('content-length' => res.body.size.to_s)
+
+          [status, response.headers || headers, [res.body]]
         end
       end
 
