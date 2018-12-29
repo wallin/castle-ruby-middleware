@@ -59,13 +59,17 @@ module Castle
 
         case verdict[:action]
         when 'challenge'
-          uri = URI(mapping.challenge_url)
-          res = Net::HTTP.get_response(uri)
-          return [200, res.each_header.to_h, [res.body]]
+          if mapping.challenge
+            uri = URI(mapping.challenge.url)
+            res = Net::HTTP.get_response(uri)
+            return [200, res.each_header.to_h, [res.body]]
+          end
         when 'deny'
-          uri = URI(mapping.deny_url)
-          res = Net::HTTP.get_response(uri)
-          return [200, res.each_header.to_h, [res.body]]
+          if mapping.deny
+            uri = URI(mapping.deny.url)
+            res = Net::HTTP.get_response(uri)
+            return [200, res.each_header.to_h, [res.body]]
+          end
         end
 
         app_result

@@ -6,7 +6,25 @@ module Castle
     class EventMapper
       Mapping = Struct.new(:event, :method, :path, :redirect_url,
                            :status, :properties, :user_traits_from_params, :authenticate,
-                           :challenge, :referer, :quitting, :deny_url, :challenge_url)
+                           :referer, :quitting, :deny, :challenge)
+
+      class Response
+        attr_accessor :url, :body, :headers, :status
+
+        DEFAULT_DENY_URL = 'https://brissmyr.github.io/pages/deny.html'
+
+        class << self
+          def build(config)
+            return unless config.is_a?(::Hash)
+
+            new.tap do |obj|
+              obj.url, obj.status, obj.headers = config.values_at(:url, :status, :headers)
+              obj.body = config[:body] if obj.url.nil?
+              obj.url ||= DEFAULT_DENY_URL
+            end
+          end
+        end
+      end
 
       attr_accessor :mappings
 
@@ -27,13 +45,10 @@ module Castle
           conditions.fetch(:properties, {}),
           conditions.fetch(:user_traits_from_params, {}),
           conditions.fetch(:authenticate, false),
-          conditions.fetch(:challenge, false),
           conditions[:referer],
           conditions.fetch(:quitting, false),
-          conditions.fetch(:deny_url,
-                           'https://brissmyr.github.io/pages/deny.html'),
-          conditions.fetch(:challenge_url,
-                           'https://brissmyr.github.io/pages/deny.html')
+          Response.build(conditions[:deny]),
+          Response.build(conditions[:challenge])
         )
       end
 
