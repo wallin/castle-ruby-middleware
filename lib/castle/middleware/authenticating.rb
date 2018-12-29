@@ -65,7 +65,6 @@ module Castle
         when 'deny'
           uri = URI(mapping.deny_url)
           res = Net::HTTP.get_response(uri)
-          binding.pry
           return [200, res.each_header.to_h, [res.body]]
         end
 
