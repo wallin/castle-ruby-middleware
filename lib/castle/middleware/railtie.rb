@@ -6,9 +6,9 @@ module Castle
   class Middleware
     class Railtie < ::Rails::Railtie
       initializer 'castle.middleware.rails' do |app|
-        app.config.middleware.insert_after ActionDispatch::Flash,
+        app.config.middleware.insert_after ActionDispatch::Static,
                                            Castle::Middleware::Sensor
-        app.config.middleware.insert_after ActionDispatch::Flash,
+        app.config.middleware.insert_after ActionDispatch::Static,
                                            Castle::Middleware::Authenticating
         app.config.middleware.insert_after ActionDispatch::Flash,
                                            Castle::Middleware::Tracking
