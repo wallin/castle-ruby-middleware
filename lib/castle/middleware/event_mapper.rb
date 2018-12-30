@@ -6,7 +6,7 @@ module Castle
     class EventMapper
       Mapping = Struct.new(:event, :method, :path, :redirect_url,
                            :status, :properties, :user_traits_from_params, :authenticate,
-                           :referer, :quitting, :deny, :challenge)
+                           :referer, :quitting, :deny, :challenge, :before)
 
       DEFAULT_CHALLENGE_URL = 'https://brissmyr.github.io/pages/challenge.html'
       DEFAULT_DENY_URL = 'https://brissmyr.github.io/pages/deny.html'
@@ -14,14 +14,13 @@ module Castle
       class Response
         attr_accessor :url, :body, :headers, :status
 
-
         class << self
           def build(config, url)
-            config = {} unless config.is_a?(::Hash)
+            return unless config.is_a?(::Hash)
 
             new.tap do |obj|
-              obj.url, obj.status, obj.headers = config.values_at('url', 'status', 'headers')
-              obj.body = config['body']
+              obj.url, obj.status, obj.headers, obj.body =
+                config.values_at('url', 'status', 'headers', 'body')
               obj.url ||= url
             end
           end
@@ -50,7 +49,8 @@ module Castle
           conditions[:referer],
           conditions.fetch(:quitting, false),
           Response.build(conditions[:deny], DEFAULT_DENY_URL),
-          Response.build(conditions[:challenge], DEFAULT_CHALLENGE_URL)
+          Response.build(conditions[:challenge], DEFAULT_CHALLENGE_URL),
+          conditions.fetch(:before, false)
         )
       end
 
@@ -62,14 +62,15 @@ module Castle
         @mappings.select { |mapping| self.class.match?(mapping, conditions) }
       end
 
-      def find_by_rack_request(status, path, headers, request, authenticate = false)
+      def find_by_rack_request(status, path, headers, request, authenticate = false, before = false)
         find(
           status: status, # Rack status code
           method: request.request_method,
           path: path,
           authenticate: authenticate,
           referer: request.referer.to_s,
-          redirect_url: headers ? headers['Location'] : nil
+          redirect_url: headers ? headers['Location'] : nil,
+          before: before
         )
       end
 
@@ -85,17 +86,18 @@ module Castle
       end
 
       def self.match?(mapping, conditions)
-        status, mtd, path, auth, referer, redirect_url = conditions.values_at(
-          :status, :method, :path, :authenticate, :referer, :redirect_url
+        status, mtd, path, auth, referer, redirect_url, before = conditions.values_at(
+          :status, :method, :path, :authenticate, :referer, :redirect_url, :before
         )
 
         return false if path.nil?
 
-        match_prop?(mapping.status, status) &&
+        (mapping.before == before) &&
+          (mapping.authenticate == auth) &&
+          match_prop?(mapping.status, status) &&
           match_prop?(mapping.method, mtd) &&
           match_prop?(mapping.redirect_url, redirect_url) &&
           match_prop?(mapping.path, path) &&
-          (mapping.authenticate == auth) &&
           match_prop?(mapping.referer, referer)
       end
 

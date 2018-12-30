@@ -30,7 +30,11 @@ module Castle
         # preserve state of path
         path = req.path
 
-        # Solve challenge
+        # Run before-handlers
+        result = handle_mapping(path, req)
+        return result if result
+
+        Solve challenge
         if req.params['challenge_succeeded'] == '1'
           API[:backup_env].each do |k,v|
             if ['rack.input'].include?(k)
@@ -69,14 +73,24 @@ module Castle
         status, headers = app_result
         return app_result if app_result.nil?
 
-        # Find a matching event from the config
-        mapping = @event_mapping.find_by_rack_request(status.to_s, path, headers, req, true).first
+        # Run after-handlers
+        result = handle_mapping(path, req, app_result)
+        return result if result
 
-        return app_result if mapping.nil?
+        app_result
+      end
+
+      def handle_mapping(path, req, response = nil)
+        # Find a matching event from the config
+        status, headers = response if response
+
+        mapping = @event_mapping.find_by_rack_request(status.to_s, path, headers, req, true, response.nil?).first
+
+        return if mapping.nil?
 
         resource = configuration.services.provide_user.call(req, true)
 
-        return app_result if resource.nil?
+        return if resource.nil?
 
         # get event properties from params
         event_properties = PropertiesProvide.call(req.params, mapping.properties)
@@ -86,17 +100,10 @@ module Castle
 
         verdict = process_authenticate(req, resource, mapping, user_traits_from_params, event_properties)
 
-        # if mapping.challenge
-        #   redirect_result = authentication_verdict(verdict, req, resource)
-        #   if redirect_result
-        #     return [302, {
-        #       'Location' => redirect_result,
-        #       'Content-Type' => 'text/html',
-        #       'Content-Length' => '0'
-        #     }, []]
-        #   end
-        # end
+        response_from_verdict(verdict, mapping)
+      end
 
+      def response_from_verdict(verdict, mapping)
         case verdict[:action]
         when 'challenge'
           if mapping.challenge
@@ -107,8 +114,6 @@ module Castle
             return handle_mapping_response(mapping.deny)
           end
         end
-
-        app_result
       end
 
       def handle_mapping_response(response)
