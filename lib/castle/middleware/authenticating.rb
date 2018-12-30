@@ -6,6 +6,12 @@ require 'castle/middleware/properties_provide'
 
 module Castle
   class Middleware
+
+    # TODO: convert to key value store
+    API = {
+      backup_env: nil
+    }
+
     class Authenticating
       extend Forwardable
       def_delegators :@middleware, :log, :configuration, :authenticate
@@ -24,7 +30,41 @@ module Castle
         # preserve state of path
         path = req.path
 
-        # [status, headers, body]
+        # Solve challenge
+        if req.params['challenge_succeeded'] == '1'
+          API[:backup_env].each do |k,v|
+            if ['rack.input'].include?(k)
+              env[k] = StringIO.new(API[:backup_env][k])
+            else
+              env[k] = v
+            end
+          end
+
+        # TODO: Challenge all non-GET requests until config supports pre-request
+        elsif env['REQUEST_METHOD'] != 'GET'
+          serializable_classes = [TrueClass, FalseClass, NilClass, Symbol, Array, Hash, String, Integer, ActiveSupport::HashWithIndifferentAccess]
+          API[:backup_env] = {}
+          dropped_env = {}
+
+          env.each do |k,v|
+            if serializable_classes.include?(v.class)
+              API[:backup_env][k] = v
+            elsif ['rack.input'].include?(k)
+              API[:backup_env][k] = v.read # StringIO
+              v.rewind
+            else
+              dropped_env[k] = v
+            end
+          end
+
+          # TODO: call handle_mapping_response instead
+          uri = URI('https://brissmyr.github.io/pages/challenge.html')
+          res = Net::HTTP.get_response(uri)
+          headers =
+            res.each_header.to_h.merge('content-length' => res.body.size.to_s)
+          return [200, headers, [res.body]]
+        end
+
         app_result = app.call(env)
         status, headers = app_result
         return app_result if app_result.nil?
