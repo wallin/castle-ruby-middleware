@@ -8,19 +8,21 @@ module Castle
                            :status, :properties, :user_traits_from_params, :authenticate,
                            :referer, :quitting, :deny, :challenge)
 
+      DEFAULT_CHALLENGE_URL = 'https://brissmyr.github.io/pages/challenge.html'
+      DEFAULT_DENY_URL = 'https://brissmyr.github.io/pages/deny.html'
+
       class Response
         attr_accessor :url, :body, :headers, :status
 
-        DEFAULT_DENY_URL = 'https://brissmyr.github.io/pages/deny.html'
 
         class << self
-          def build(config)
+          def build(config, url)
             config = {} unless config.is_a?(::Hash)
 
             new.tap do |obj|
               obj.url, obj.status, obj.headers = config.values_at('url', 'status', 'headers')
               obj.body = config['body']
-              obj.url ||= DEFAULT_DENY_URL
+              obj.url ||= url
             end
           end
         end
@@ -47,8 +49,8 @@ module Castle
           conditions.fetch(:authenticate, false),
           conditions[:referer],
           conditions.fetch(:quitting, false),
-          Response.build(conditions[:deny]),
-          Response.build(conditions[:challenge])
+          Response.build(conditions[:deny], DEFAULT_DENY_URL),
+          Response.build(conditions[:challenge], DEFAULT_CHALLENGE_URL)
         )
       end
 
