@@ -152,16 +152,28 @@ module Castle
 
         verdict = process_authenticate(req, resource, mapping, user_traits_from_params, event_properties)
 
-        response_from_verdict(verdict, mapping, redirect_data)
+        # XXX: hack until we can retrive user email based on device token
+        email = req.params['user']['email']
+
+        response_from_verdict(verdict, mapping, redirect_data, email)
       end
 
-      def response_from_verdict(verdict, mapping, redirect_data)
+      def response_from_verdict(verdict, mapping, redirect_data, email)
         case verdict[:action]
         when 'challenge'
           if mapping.challenge
+            device_token = verdict[:device_token]
+
+            if email
+              payload = JWT.decode(device_token, ENV['CASTLE_API_SECRET'], 'HS256')[0]
+              payload['email'] = email
+              device_token = JWT.encode(payload, ENV['CASTLE_API_SECRET'], 'HS256')
+            end
+
+            # TODO: encode event name (or similar) so you can't solve a captcha for a different event and then use that token
             uri = URI("#{ENV.fetch('CASTLE_VERIFY_API', 'http://localhost:9292')}/v0/request")
             res = Net::HTTP.post_form(uri, {
-              device_token: verdict[:device_token]
+              device_token: device_token
             })
             verification_token = JSON.parse(res.body)['verification_token']
 
