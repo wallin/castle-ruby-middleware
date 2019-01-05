@@ -117,7 +117,8 @@ module Castle
             'content-length' => res.body.size.to_s
           )
 
-          [200, headers, [res.body]]
+          response = Rack::Response.new(res.body, 200, headers)
+          response.finish
         end
       end
 
