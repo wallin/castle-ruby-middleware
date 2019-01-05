@@ -39,7 +39,9 @@ module Castle
         return result if result
 
         # # Solve challenge
-        # if req.params['challenge_succeeded'] == '1'
+        if req.params['_ct']
+          return JSON.load(Base64.urlsafe_decode64(req.params['_ct']))
+
         #   API[:backup_env].each do |k,v|
         #     if ['rack.input'].include?(k)
         #       env[k] = StringIO.new(API[:backup_env][k])
@@ -47,7 +49,7 @@ module Castle
         #       env[k] = v
         #     end
         #   end
-        # end
+        end
 
         # if req.params['device_token']
         #   secret = 'XRPBTm1AB57FKDW2s8sqnq5Nhfg5TXzc'
