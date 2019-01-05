@@ -110,8 +110,8 @@ module Castle
 
       def handle_challenge_response(req)
         api_url = ENV.fetch('CASTLE_VERIFY_API', 'http://localhost:9292')
-        if req.params.key?(:_cvt)
-          url = URI(api_url + '/confirm?t=' + req.params[:_cvt])
+        if req.params.key?('_cvt')
+          uri = URI(api_url + '/confirm?t=' + req.params['_cvt'])
           res = Net::HTTP.get_response(uri)
           headers = res.each_header.to_h.merge(
             'content-length' => res.body.size.to_s
