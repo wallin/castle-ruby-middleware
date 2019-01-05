@@ -39,8 +39,8 @@ module Castle
         return result if result
 
         # # Solve challenge
-        if req.params['_ct']
-          return JSON.load(Base64.urlsafe_decode64(req.params['_ct']))
+        if req.params['_crd']
+          return JSON.load(Base64.urlsafe_decode64(req.params['_crd']))
 
         #   API[:backup_env].each do |k,v|
         #     if ['rack.input'].include?(k)
@@ -133,6 +133,17 @@ module Castle
 
         return if resource.nil?
 
+        if response
+          # TODO: needed?
+          body = if !response[2].is_a? String
+            response[2].body
+          else
+            response[2]
+          end
+          redirect_data = Base64.urlsafe_encode64([response[0], response[1], body].to_json)
+          puts redirect_data.size
+        end
+
         # get event properties from params
         event_properties = PropertiesProvide.call(req.params, mapping.properties)
 
@@ -148,16 +159,24 @@ module Castle
         case verdict[:action]
         when 'challenge'
           if mapping.challenge
-            return handle_mapping_response(mapping.challenge, redirect_data, verdict[:device_token])
+            uri = URI("#{ENV.fetch('CASTLE_VERIFY_API', 'http://localhost:9292')}/v0/request")
+            res = Net::HTTP.post_form(uri, {
+              device_token: verdict[:device_token]
+            })
+            verification_token = JSON.parse(res.body)['verification_token']
+
+            response = handle_mapping_response(mapping.challenge, redirect_data, verification_token)
+
+            return response
           end
         when 'deny'
           if mapping.deny
-            return handle_mapping_response(mapping.deny, redirect_data, verdict[:device_token])
+            return handle_mapping_response(mapping.deny, redirect_data, verification_token)
           end
         end
       end
 
-      def handle_mapping_response(response, redirect_data, device_token)
+      def handle_mapping_response(response, redirect_data, verification_token)
         status = response.status || 200
         if response.body
           [status, response.headers || {}, [response.body]]
@@ -165,7 +184,7 @@ module Castle
           uri = URI(response.url)
 
           res = Net::HTTP.post_form(uri, {
-            device_token: device_token,
+            verification_token: verification_token,
             redirect_data: redirect_data })
 
           # Move these 2 "hacks" to the asset proxy
