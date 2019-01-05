@@ -124,11 +124,17 @@ module Castle
           uri = URI(response.url)
           res = Net::HTTP.get_response(uri)
 
-          # Don't do GZIP
+
+          # Move these 2 "hacks" to the asset proxy
+          # 1. Don't do GZIP
           headers =
             res.each_header.to_h.merge('content-length' => res.body.size.to_s)
+          # 2. Avoid ERR_INVALID_CHUNKED_ENCODING
+          headers.delete 'transfer-encoding'
 
-          [status, response.headers || headers, [res.body]]
+          response = Rack::Response.new res.body, status, response.headers || headers
+
+          response.finish # finish writes out the response in the expected format.
         end
       end
 
