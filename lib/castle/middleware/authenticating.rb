@@ -116,6 +116,7 @@ module Castle
           headers = res.each_header.to_h.merge(
             'content-length' => res.body.size.to_s
           )
+          headers.delete('transfer-encoding')
 
           response = Rack::Response.new(res.body, 200, headers)
           response.finish
