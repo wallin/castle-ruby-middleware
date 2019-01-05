@@ -165,7 +165,7 @@ module Castle
           uri = URI(response.url)
 
           res = Net::HTTP.post_form(uri, {
-            token: device_token,
+            device_token: device_token,
             redirect_data: redirect_data })
 
           # Move these 2 "hacks" to the asset proxy
