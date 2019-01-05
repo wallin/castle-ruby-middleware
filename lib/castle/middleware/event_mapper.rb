@@ -8,8 +8,8 @@ module Castle
                            :status, :properties, :user_traits_from_params, :authenticate,
                            :referer, :quitting, :deny, :challenge, :before)
 
-      DEFAULT_CHALLENGE_URL = 'https://brissmyr.github.io/pages/challenge.html'
-      DEFAULT_DENY_URL = 'https://brissmyr.github.io/pages/deny.html'
+      DEFAULT_CHALLENGE_URL = 'https://verify.castlete.st/views/challenge.html.hbs'
+      DEFAULT_DENY_URL = 'https://verify.castlete.st/views/deny.html.hbs'
 
       class Response
         attr_accessor :url, :body, :headers, :status

@@ -122,30 +122,32 @@ module Castle
 
         verdict = process_authenticate(req, resource, mapping, user_traits_from_params, event_properties)
 
-        response_from_verdict(verdict, mapping)
+        response_from_verdict(verdict, mapping, redirect_data)
       end
 
-      def response_from_verdict(verdict, mapping)
+      def response_from_verdict(verdict, mapping, redirect_data)
         case verdict[:action]
         when 'challenge'
           if mapping.challenge
-            return handle_mapping_response(mapping.challenge)
+            return handle_mapping_response(mapping.challenge, redirect_data, verdict[:device_token])
           end
         when 'deny'
           if mapping.deny
-            return handle_mapping_response(mapping.deny)
+            return handle_mapping_response(mapping.deny, redirect_data, verdict[:device_token])
           end
         end
       end
 
-      def handle_mapping_response(response)
+      def handle_mapping_response(response, redirect_data, device_token)
         status = response.status || 200
         if response.body
           [status, response.headers || {}, [response.body]]
         else
           uri = URI(response.url)
-          res = Net::HTTP.get_response(uri)
 
+          res = Net::HTTP.post_form(uri, {
+            token: device_token,
+            redirect_data: redirect_data })
 
           # Move these 2 "hacks" to the asset proxy
           # 1. Don't do GZIP
