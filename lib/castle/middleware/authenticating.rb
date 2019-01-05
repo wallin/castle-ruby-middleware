@@ -141,7 +141,6 @@ module Castle
             response[2]
           end
           redirect_data = Base64.urlsafe_encode64([response[0], response[1], body].to_json)
-          puts redirect_data.size
         end
 
         # get event properties from params
@@ -154,11 +153,12 @@ module Castle
 
         # XXX: hack until we can retrive user email based on device token
         email = req.params['user']['email']
+        referrer = req.env['HTTP_ORIGIN']
 
-        response_from_verdict(verdict, mapping, redirect_data, email)
+        response_from_verdict(verdict, mapping, redirect_data, email, referrer)
       end
 
-      def response_from_verdict(verdict, mapping, redirect_data, email)
+      def response_from_verdict(verdict, mapping, redirect_data, email, referrer)
         case verdict[:action]
         when 'challenge'
           if mapping.challenge
@@ -173,7 +173,8 @@ module Castle
             # TODO: encode event name (or similar) so you can't solve a captcha for a different event and then use that token
             uri = URI("#{ENV.fetch('CASTLE_VERIFY_API', 'http://localhost:9292')}/v0/request")
             res = Net::HTTP.post_form(uri, {
-              device_token: device_token
+              device_token: device_token,
+              referrer: referrer
             })
             verification_token = JSON.parse(res.body)['verification_token']
 
