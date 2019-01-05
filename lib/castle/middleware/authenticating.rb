@@ -34,6 +34,10 @@ module Castle
         result = handle_mapping(path, req)
         return result if result
 
+        # Solve challenge
+        result = handle_challenge_response(req)
+        return result if result
+
         # # Solve challenge
         # if req.params['challenge_succeeded'] == '1'
         #   API[:backup_env].each do |k,v|
@@ -100,6 +104,19 @@ module Castle
         return result if result
 
         app_result
+      end
+
+      def handle_challenge_response(req)
+        api_url = ENV.fetch('CASTLE_VERIFY_API', 'http://localhost:9292')
+        if req.params.key?(:_cvt)
+          url = URI(api_url + '/confirm?t=' + req.params[:_cvt])
+          res = Net::HTTP.get_response(uri)
+          headers = res.each_header.to_h.merge(
+            'content-length' => res.body.size.to_s
+          )
+
+          [200, headers, [res.body]]
+        end
       end
 
       def handle_mapping(path, req, response = nil)
