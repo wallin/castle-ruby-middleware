@@ -43,7 +43,11 @@ module Castle
               # was captured from the request or the response
               session_data, type = req.params[PRM_CASTLE_REQUEST_DATA].split(',')
               if type == 'request'
-                backup_env = Marshal.load(Base64.urlsafe_decode64(session_data))
+                # Decrypt
+                key = ENV['CASTLE_API_SECRET'][0..15]
+                plaintext = JWE.decrypt(session_data, key)
+                backup_env = Marshal.load(plaintext)
+
                 backup_env.each do |k,v|
                   if ['rack.input'].include?(k)
                     req.env[k] = StringIO.new(backup_env[k])
@@ -53,7 +57,10 @@ module Castle
                 end
                 return nil # fall through
               else # response
-                return Marshal.load(Base64.urlsafe_decode64(session_data))
+                # Decrypt
+                key = ENV['CASTLE_API_SECRET'][0..15]
+                plaintext = JWE.decrypt(session_data, key)
+                return Marshal.load(plaintext)
               end
             end
           end
@@ -91,12 +98,15 @@ module Castle
                 end
               end
 
-              request_data = Base64.urlsafe_encode64(Marshal.dump(backup_env))+',request' # XXX: hack
+              # Encrypt
+              key = ENV['CASTLE_API_SECRET'][0..15] # need to be 16 bytes
+              payload = Marshal.dump(backup_env)
+              redirect_data = JWE.encrypt(payload, key, alg: 'dir')+',request'  # XXX: hack
 
               # TODO: request_data should be transferred to Challenge handler, not bail here
               return [200, {
                 'Content-Type' => 'text/html'
-              }, ["<a href='http://localhost.charlesproxy.com:3000/?_crd=#{request_data}'>Proceed</a>"]]
+              }, ["<a href='http://localhost.charlesproxy.com:3000/?_crd=#{redirect_data}'>Proceed</a>"]]
             end
           end
         end
@@ -134,7 +144,11 @@ module Castle
                 response[2].first
               end
             end
-            redirect_data = Base64.urlsafe_encode64(Marshal.dump([response[0], response[1], body]))
+
+            # Encrypt
+            key = ENV['CASTLE_API_SECRET'][0..15] # need to be 16 bytes
+            payload = Marshal.dump([response[0], response[1], body])
+            redirect_data = JWE.encrypt(payload, key, alg: 'dir')
           end
 
           # get event properties from params
