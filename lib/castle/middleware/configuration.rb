@@ -39,7 +39,7 @@ module Castle
       rescue Errno::ENOENT => e
         log(:error, '[Castle] No config file found')
       rescue Psych::SyntaxError
-        Caste::Middleware::ConfigError.new('[Castle] Invalid YAML in config file')
+        Castle::Middleware::ConfigError.new('[Castle] Invalid YAML in config file')
       end
     end
   end
