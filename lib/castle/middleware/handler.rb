@@ -79,7 +79,7 @@ module Castle
         class << self
           def call(req)
             # TODO: hardcoded profile update route
-            if req.env['REQUEST_METHOD'] == 'POST' && req.env['REQUEST_PATH'] == '/'
+            if false # req.env['REQUEST_METHOD'] == 'POST' && req.env['REQUEST_PATH'] == '/'
               backup_env = {}
 
               req.env.each do |k,v|
