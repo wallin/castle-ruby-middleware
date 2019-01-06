@@ -3,16 +3,24 @@ module Castle
     # Defines handlers for request/response scenarios. These all return
     # a rack friendly response or nil
     module Handler
+      # Verification token returned by the challenge server, used for checking
+      # if challenge has been solved
+      PRM_VERIFICATION_TOKEN = '_cvt'
+
+      # Saved data from the original response upon eg. a successful login
+      # Used later to replay the request when a challenge has been solved
+      PRM_CASTLE_REQUEST_DATA = '_crd'
+
       # Solve challenge
       module Challenge
         class << self
           def call(req)
             api_url = ENV.fetch('CASTLE_VERIFY_API', 'http://localhost:9292')
-            if req.params.key?('_cvt')
-              uri = URI(api_url + '/confirm?t=' + req.params['_cvt'])
+            if req.params.key?(PRM_VERIFICATION_TOKEN)
+              uri = URI(api_url + '/confirm?t=' + req.params[PRM_VERIFICATION_TOKEN])
               res = Net::HTTP.get_response(uri)
 
-              # TODO: how to handler error?
+              # TODO: how to handle error?
 
               headers = res.each_header.to_h.merge(
                 'content-length' => res.body.size.to_s
@@ -30,8 +38,10 @@ module Castle
       module Redirect
         class << self
           def call(req)
-            if req.params['_crd']
-              session_data, type = req.params['_crd'].split(',')
+            if req.params[PRM_CASTLE_REQUEST_DATA]
+              # TODO: implement a proper format. We need to know if the data
+              # was captured from the request or the response
+              session_data, type = req.params[PRM_CASTLE_REQUEST_DATA].split(',')
               if type == 'request'
                 backup_env = Marshal.load(Base64.urlsafe_decode64(session_data))
                 backup_env.each do |k,v|
@@ -49,8 +59,10 @@ module Castle
         end
       end
 
+      # Capture request data and save for later while user is being challenged
       module RequestData
-        # TODO: is this a complete list? Or maybe should instead specifiy *unserializable* classes?
+        # TODO: is this a complete list? Or maybe should instead specifiy
+        # *unserializable* classes?
         SERIALIZABLE_CLASSES = [
           ActiveSupport::HashWithIndifferentAccess,
           Array,
@@ -61,7 +73,7 @@ module Castle
           String,
           Symbol,
           TrueClass,
-        ]
+        ].freeze
 
         class << self
           def call(req)
@@ -84,16 +96,6 @@ module Castle
               return [200, {
                 'Content-Type' => 'text/html'
               }, ["<a href='http://localhost.charlesproxy.com:3000/?_crd=#{request_data}'>Proceed</a>"]]
-            end
-          end
-        end
-      end
-
-      module Redirect
-        class << self
-          def call(req)
-            if req.params['_crd']
-              return JSON.load(Base64.urlsafe_decode64(req.params['_crd']))
             end
           end
         end
