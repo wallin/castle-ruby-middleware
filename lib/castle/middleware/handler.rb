@@ -51,6 +51,7 @@ module Castle
                     req.env[k] = v
                   end
                 end
+                return nil # fall through
               else # response
                 return Marshal.load(Base64.urlsafe_decode64(session_data))
               end
@@ -123,11 +124,15 @@ module Castle
           resource = configuration.services.provide_user.call(req, true)
 
           return if resource.nil?
-
           if response
             body = case response[2]
             when String then response[2]
-            when Array, Rack::BodyProxy then response[2].first
+            when Array, Rack::BodyProxy
+              if response[2].respond_to? :body
+                response[2].body
+              else
+                response[2].first
+              end
             end
             redirect_data = Base64.urlsafe_encode64(Marshal.dump([response[0], response[1], body]))
           end
@@ -141,7 +146,7 @@ module Castle
           verdict = process_authenticate(req, resource, mapping, user_traits_from_params, event_properties)
 
           # XXX: hack until we can retrive user email based on device token
-          email = req.params.fetch(['user'], {})['email']
+          email = req.params.fetch('user', {})['email']
           referrer = req.env['HTTP_ORIGIN']
 
           response_from_verdict(verdict, mapping, redirect_data, email, referrer)
