@@ -1,5 +1,3 @@
-
-
 module Castle
   class Middleware
     # Defines handlers for request/response scenarios. These all return
@@ -29,6 +27,68 @@ module Castle
       end
 
       # Redirect to saved context
+      module Redirect
+        class << self
+          def call(req)
+            if req.params['_crd']
+              session_data, type = req.params['_crd'].split(',')
+              if type == 'request'
+                backup_env = Marshal.load(Base64.urlsafe_decode64(session_data))
+                backup_env.each do |k,v|
+                  if ['rack.input'].include?(k)
+                    req.env[k] = StringIO.new(backup_env[k])
+                  else
+                    req.env[k] = v
+                  end
+                end
+              else # response
+                return Marshal.load(Base64.urlsafe_decode64(session_data))
+              end
+            end
+          end
+        end
+      end
+
+      module RequestData
+        # TODO: is this a complete list? Or maybe should instead specifiy *unserializable* classes?
+        SERIALIZABLE_CLASSES = [
+          ActiveSupport::HashWithIndifferentAccess,
+          Array,
+          FalseClass,
+          Hash,
+          Integer,
+          NilClass,
+          String,
+          Symbol,
+          TrueClass,
+        ]
+
+        class << self
+          def call(req)
+            # TODO: hardcoded profile update route
+            if req.env['REQUEST_METHOD'] == 'POST' && req.env['REQUEST_PATH'] == '/'
+              backup_env = {}
+
+              req.env.each do |k,v|
+                if SERIALIZABLE_CLASSES.include?(v.class)
+                  backup_env[k] = v
+                elsif ['rack.input'].include?(k) # StringIO, TODO: generalize
+                  backup_env[k] = v.read
+                  v.rewind
+                end
+              end
+
+              request_data = Base64.urlsafe_encode64(Marshal.dump(backup_env))+',request' # XXX: hack
+
+              # TODO: request_data should be transferred to Challenge handler, not bail here
+              return [200, {
+                'Content-Type' => 'text/html'
+              }, ["<a href='http://localhost.charlesproxy.com:3000/?_crd=#{request_data}'>Proceed</a>"]]
+            end
+          end
+        end
+      end
+
       module Redirect
         class << self
           def call(req)
@@ -63,13 +123,11 @@ module Castle
           return if resource.nil?
 
           if response
-            # TODO: needed?
-            body = if !response[2].is_a? String
-              response[2].body
-            else
-              response[2]
+            body = case response[2]
+            when String then response[2]
+            when Array, Rack::BodyProxy then response[2].first
             end
-            redirect_data = Base64.urlsafe_encode64([response[0], response[1], body].to_json)
+            redirect_data = Base64.urlsafe_encode64(Marshal.dump([response[0], response[1], body]))
           end
 
           # get event properties from params
@@ -81,7 +139,7 @@ module Castle
           verdict = process_authenticate(req, resource, mapping, user_traits_from_params, event_properties)
 
           # XXX: hack until we can retrive user email based on device token
-          email = req.params['user']['email']
+          email = req.params.fetch(['user'], {})['email']
           referrer = req.env['HTTP_ORIGIN']
 
           response_from_verdict(verdict, mapping, redirect_data, email, referrer)

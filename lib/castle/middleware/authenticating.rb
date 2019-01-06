@@ -30,6 +30,7 @@ module Castle
         # Run Castle handlers
         result = [
           @mapping_handler, # Before-handlers
+          Handler::RequestData,
           Handler::Challenge,
           Handler::Redirect
         ].reduce(nil) { |memo, handler| memo || handler.call(req) }
