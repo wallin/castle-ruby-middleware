@@ -7,12 +7,6 @@ require 'castle/middleware/handler'
 
 module Castle
   class Middleware
-
-    # TODO: convert to key value store
-    API = {
-      backup_env: nil
-    }
-
     class Authenticating
       attr_reader :app
 
