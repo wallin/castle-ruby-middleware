@@ -168,10 +168,10 @@ module Castle
           email = req.params.fetch('user', {})['email']
           referrer = req.env['HTTP_ORIGIN']
 
-          response_from_verdict(verdict, mapping, redirect_data, email, referrer)
+          response_from_verdict(req, verdict, mapping, redirect_data, email, referrer)
         end
 
-        def response_from_verdict(verdict, mapping, redirect_data, email, referrer)
+        def response_from_verdict(req, verdict, mapping, redirect_data, email, referrer)
           case verdict[:action]
           when 'challenge'
             if mapping.challenge
@@ -191,23 +191,30 @@ module Castle
               })
               verification_token = JSON.parse(res.body)['verification_token']
 
-              response = mapping_response(mapping.challenge, redirect_data, verification_token)
+              response = mapping_response(req, mapping.challenge, redirect_data, verification_token)
 
               return response
             end
           when 'deny'
             if mapping.deny
-              return mapping_response(mapping.deny, redirect_data, verification_token)
+              return mapping_response(req, mapping.deny, redirect_data, verification_token)
             end
           end
         end
 
-        def mapping_response(response, redirect_data, verification_token)
+        def mapping_response(req, response, redirect_data, verification_token)
           status = response.status || 200
           if response.body
             [status, response.headers || {}, [response.body]]
           elsif response.url
-            uri = URI(response.url)
+            # Handle local url by appending origin
+            uri = if response.url.start_with?('/')
+              URI(req.url).tap do |u|
+                u.path = response.url
+              end
+            else
+              URI(response.url)
+            end
 
             res = Net::HTTP.get_response(uri)
 
@@ -239,7 +246,7 @@ module Castle
           .join("\n")
 
           (response.respond_to?(:body) ? response.body : response)
-          .sub(HEAD_REGEX, "#{meta_tags}\n#{HEAD_END}" )
+          .sub(HEAD_REGEX, "#{meta_tags}\n#{HEAD_END}")
         end
 
         def process_authenticate(req, resource, mapping, user_traits_from_params, event_properties)
