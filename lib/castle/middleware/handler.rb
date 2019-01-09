@@ -1,3 +1,8 @@
+# frozen_string_literal: true
+
+require 'jwe'
+require 'jwt'
+
 module Castle
   class Middleware
     # Defines handlers for request/response scenarios. These all return
@@ -45,7 +50,7 @@ module Castle
               if type == 'request'
                 # Decrypt
                 key = ENV['CASTLE_API_SECRET'][0..15]
-                plaintext = JWE.decrypt(session_data, key)
+                plaintext = ::JWE.decrypt(session_data, key)
                 backup_env = Marshal.load(plaintext)
 
                 backup_env.each do |k,v|
@@ -59,7 +64,7 @@ module Castle
               else # response
                 # Decrypt
                 key = ENV['CASTLE_API_SECRET'][0..15]
-                plaintext = JWE.decrypt(session_data, key)
+                plaintext = ::JWE.decrypt(session_data, key)
                 return Marshal.load(plaintext)
               end
             end
@@ -148,7 +153,7 @@ module Castle
             # Encrypt
             key = ENV['CASTLE_API_SECRET'][0..15] # need to be 16 bytes
             payload = Marshal.dump([response[0], response[1], body])
-            redirect_data = JWE.encrypt(payload, key, alg: 'dir')
+            redirect_data = ::JWE.encrypt(payload, key, alg: 'dir')
           end
 
           # get event properties from params
@@ -175,7 +180,7 @@ module Castle
               if email
                 payload = JWT.decode(device_token, ENV['CASTLE_API_SECRET'], 'HS256')[0]
                 payload['email'] = email
-                device_token = JWT.encode(payload, ENV['CASTLE_API_SECRET'], 'HS256')
+                device_token = ::JWT.encode(payload, ENV['CASTLE_API_SECRET'], 'HS256')
               end
 
               # TODO: encode event name (or similar) so you can't solve a captcha for a different event and then use that token
@@ -204,9 +209,7 @@ module Castle
           else
             uri = URI(response.url)
 
-            res = Net::HTTP.post_form(uri, {
-              verification_token: verification_token,
-              redirect_data: redirect_data })
+            res = Net::HTTP.post_form(uri, {})
 
             # Move these 2 "hacks" to the asset proxy
             # 1. Don't do GZIP
@@ -215,9 +218,28 @@ module Castle
             # 2. Avoid ERR_INVALID_CHUNKED_ENCODING
             headers.delete 'transfer-encoding'
 
+            # Insert Castle meta tags
+            res.body = insert_meta_tags(res.body, redirect_data, verification_token)
+
             response = Rack::Response.new res.body, status, response.headers || headers
 
             response.finish # finish writes out the response in the expected format.
+          end
+        end
+
+        # TODO: extract to more robust module
+        META_TAG = '<meta name="castle_%s" content="%s"></meta>'
+        HEAD_END = '</head>'
+        HEAD_REGEX = Regexp.new(HEAD_END, Regexp::IGNORECASE)
+        def insert_meta_tags(response, redirect_data, verification_token)
+          meta_tags = {
+            session_data: redirect_data,
+            verification_token: verification_token
+          }.map { |k, v| META_TAG % ([k, CGI.escapeHTML(v)]) }
+          .join("\n")
+
+          (response.respond_to?(:body) ? response.body : response)
+          .sub(HEAD_REGEX, "#{meta_tags}\n#{HEAD_END}" )
           end
         end
 
