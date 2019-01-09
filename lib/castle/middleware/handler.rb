@@ -206,10 +206,10 @@ module Castle
           status = response.status || 200
           if response.body
             [status, response.headers || {}, [response.body]]
-          else
+          elsif response.url
             uri = URI(response.url)
 
-            res = Net::HTTP.post_form(uri, {})
+            res = Net::HTTP.get_response(uri)
 
             # Move these 2 "hacks" to the asset proxy
             # 1. Don't do GZIP
@@ -240,7 +240,6 @@ module Castle
 
           (response.respond_to?(:body) ? response.body : response)
           .sub(HEAD_REGEX, "#{meta_tags}\n#{HEAD_END}" )
-          end
         end
 
         def process_authenticate(req, resource, mapping, user_traits_from_params, event_properties)
